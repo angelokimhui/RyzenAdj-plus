@@ -172,12 +172,10 @@ function resetSTAPMIfNeeded {
     }
 }
 
-doAdjust_ryzenadj
-
 Write-Host "Applying settings every $Script:repeatWaitTimeSeconds seconds..."
 
 while ($true) {
-    doAdjust_ryzenadj
     if ($resetSTAPMUsage) { resetSTAPMIfNeeded }
+    doAdjust_ryzenadj
     Start-Sleep -Seconds $Script:repeatWaitTimeSeconds
 }
