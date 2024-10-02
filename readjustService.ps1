@@ -1,35 +1,24 @@
 <#
 .SYNOPSIS
-    Automates ryzenAdj calls based on custom conditions
+    Automates RyzenAdj calls based on custom conditions
 .DESCRIPTION
-    This script is designed to provide maximum flexibility to the user. For that reason it does not use parameters.
-    Instead of parameters, you need to populate the functions in the configuration section with your custom adjustments and additional custom code.
+    This script provides flexibility to the user by allowing function-based configuration instead of parameters.
 .NOTES
     SPDX-License-Identifier: LGPL
     Falco Schaffrath <falco.schaffrath@gmail.com>
 #>
 
-Param([Parameter(Mandatory=$false)][switch]$noGUI)
+Param([switch]$noGUI)
 $Error.Clear()
-################################################################################
-#### Configuration Start
-################################################################################
-# WARNING: Use at your own risk!
 
-$pathToRyzenAdjDlls = Split-Path -Parent $PSCommandPath #script path is DLL path, needs to be absolut path if you define something else
-
+# Configuration Start
+$pathToRyzenAdjDlls = Split-Path -Parent $PSCommandPath
 $showErrorPopupsDuringInit = $true
-# debug mode prints adjust success messages too instead of errorss only
-$debugMode = $false
-# some Zen3 devices have a locked STAPM limit, this workarround resets the stapm timer to have unlimited stapm. Use max stapm_limit and stapm_time (usually 500) to triger as less resets as possible
 $resetSTAPMUsage = $true
 
-# SET PROFILE TO 25 OR MORE WATTS in SMOKELESS UMAF OR BIOS
-
 function doAdjust_ryzenadj {
-    $Script:repeatWaitTimeSeconds = 10    #only use values below 5s if you are using $monitorField
+    $Script:repeatWaitTimeSeconds = 10
     enable "max_performance"
-    # enable "power_saving"
     adjust "stapm_limit" 65000
     adjust "fast_limit" 25000
     adjust "slow_limit" 25000
@@ -130,55 +119,43 @@ public static String getDllImportErrors(){
 }
 '@
 
-if(-not ([System.Management.Automation.PSTypeName]'ryzen.adj').Type){
+if (-not ([System.Management.Automation.PSTypeName]'ryzen.adj').Type) {
     Add-Type -MemberDefinition $apiHeader -Namespace 'ryzen' -Name 'adj' -UsingNamespace ('System.Text', 'System.IO')
 }
 
 Add-Type -AssemblyName System.Windows.Forms
-function showErrorMsg ([String] $msg){
-    if($showErrorPopupsDuringInit){
-        [void][System.Windows.Forms.MessageBox]::Show($msg, $PSCommandPath,
-        [System.Windows.Forms.MessageBoxButtons]::OK,
-        [System.Windows.Forms.MessageBoxIcon]::Error)
+
+function showErrorMsg ($msg) {
+    if ($showErrorPopupsDuringInit) {
+        [System.Windows.Forms.MessageBox]::Show($msg, $PSCommandPath, 'OK', 'Error')
     }
 }
 
-$dllImportErrors = [ryzen.adj]::getDllImportErrors();
-if($dllImportErrors -or $Error){
+$dllImportErrors = [ryzen.adj]::getDllImportErrors()
+if ($dllImportErrors) {
     Write-Error $dllImportErrors
-    showErrorMsg "Problem with using libryzenadj.dll$NL$NL$($Error -join $NL)"
+    showErrorMsg "Problem with libryzenadj.dll$NL$($dllImportErrors)"
     exit 1
 }
 
 $winring0DriverFilepath = [ryzen.adj]::getExpectedWinRing0DriverFilepath()
-if(!(Test-Path $winring0DriverFilepath)) { Copy-Item -Path $pathToRyzenAdjDlls\WinRing0x64.sys -Destination $winring0DriverFilepath }
+if (!(Test-Path $winring0DriverFilepath)) {
+    Copy-Item -Path "$pathToRyzenAdjDlls\WinRing0x64.sys" -Destination $winring0DriverFilepath
+}
 
 $ry = [ryzen.adj]::init_ryzenadj()
-if($ry -eq 0){
-    $msg = "RyzenAdj could not get initialized.$($NL)Reason can be found inside Powershell$($NL)"
-    if($psISE) { $msg += "It is not possible to see the error reason inside ISE, you need to test it in PowerShell Console" }
-    showErrorMsg "$msg$NL$NL$($Error -join $NL)"
+if ($ry -eq 0) {
+    $msg = "RyzenAdj initialization failed."
+    showErrorMsg "$msg$NL$($Error -join $NL)"
     exit 1
 }
 
-function adjust ([String] $fieldName, [uInt32] $value) {
-    if($fieldName -eq $Script:monitorField) {
-        $newTargetValue = [math]::round($value * 0.001, 3, 0)
-        if($Script:monitorFieldAdjTarget -ne $newTargetValue){
-            $Script:monitorFieldAdjTarget = $newTargetValue
-        }
-    }
-    $res = Invoke-Expression "[ryzen.adj]::set_$fieldName($ry, $value)"
-    if ($res -ne 0) {
-        Write-Error "Failed to set $fieldName with result code $res"
-    }
+function adjust ($fieldName, $value) {
+    Invoke-Expression "[ryzen.adj]::set_$fieldName($ry, $value)" | Out-Null
 }
 
-function enable ([String] $fieldName) {
-    $res = Invoke-Expression "[ryzen.adj]::set_$fieldName($ry)"
-    if ($res -ne 0) {
-        Write-Error "Failed to enable $fieldName with result code $res"
-    }
+function enable ($fieldName) {
+    Invoke-Expression "[ryzen.adj]::set_$fieldName($ry)" | Out-Null
 }
 
 function resetSTAPMIfNeeded {
@@ -187,20 +164,17 @@ function resetSTAPMIfNeeded {
 
     if ($stapm_value -gt ($stapm_limit - 1)) {
         $stapm_time = [ryzen.adj]::get_stapm_time($ry)
-        [void][ryzen.adj]::set_stapm_limit($ry, ($stapm_limit - 5) * 1000)
-        [void][ryzen.adj]::set_stapm_time($ry, 0)
-        [Threading.Thread]::Sleep(10)
-        [void][ryzen.adj]::set_stapm_time($ry, $stapm_time)
-        [void][ryzen.adj]::set_stapm_limit($ry, $stapm_limit * 1250)
+        adjust "stapm_limit" ($stapm_limit - 5) * 1000
+        adjust "stapm_time" 0
+        Start-Sleep -Milliseconds 10
+        adjust "stapm_time" $stapm_time
+        adjust "stapm_limit" $stapm_limit * 1250
     }
 }
 
-if (-not $Script:repeatWaitTimeSeconds) { $Script:repeatWaitTimeSeconds = 5 }
-
 doAdjust_ryzenadj
 
-$processType = "Apply Settings"
-Write-Host "$processType every $Script:repeatWaitTimeSeconds seconds..."
+Write-Host "Applying settings every $Script:repeatWaitTimeSeconds seconds..."
 
 while ($true) {
     doAdjust_ryzenadj
