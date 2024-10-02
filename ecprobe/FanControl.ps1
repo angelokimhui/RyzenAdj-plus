@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Automates ecprobe calls based on custom conditions.
 .NOTES
@@ -40,7 +40,7 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                     $temperature = $sensor.Value
 
                     switch ($temperature) {
-                        {$_ -le 35} {
+                        {$_ -le 45} {
                             Set-FanSpeed 0
                             while ($sensor.Value -lt 40) {
                                 $hardwareItem.Update()
@@ -49,7 +49,7 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                         }
                         {$_ -le 50} {
                             Set-FanSpeed 30
-                            while ($sensor.Value -lt 60 -and $sensor.Value -gt 30) {
+                            while ($sensor.Value -lt 60 -and $sensor.Value -gt 45) {
                                 $hardwareItem.Update()
                                 Start-Sleep -Seconds 2
                             }
@@ -58,7 +58,7 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                             Set-FanSpeed 50
                             while ($sensor.Value -lt 65 -and $sensor.Value -gt 50) {
                                 $hardwareItem.Update()
-                                Start-Sleep -Seconds 10
+                                Start-Sleep -Seconds 5
                             }
                         }
                         {$_ -le 65} {
