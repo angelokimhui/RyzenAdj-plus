@@ -1,0 +1,9 @@
+[Unit]
+Description=Ryzenboost
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ryzenboost
+
+[Install]
+WantedBy=multi-user.target
