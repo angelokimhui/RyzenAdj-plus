@@ -24,14 +24,6 @@ $debugMode = $false
 # some Zen3 devices have a locked STAPM limit, this workarround resets the stapm timer to have unlimited stapm. Use max stapm_limit and stapm_time (usually 500) to triger as less resets as possible
 $resetSTAPMUsage = $true
 
-# Undervolt -30 on all cores
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x0FFFCE")
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x1FFFCE")
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x2FFFCE")
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x3FFFCE")
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x4FFFCE")
-# Start-Process -NoNewWindow -Wait -filePath "C:\Data\Programs\RyzenADJ\ryzenadj.exe" -ArgumentList("--set-coper=0x5FFFCE")
-
 # SET PROFILE TO 25 OR MORE WATTS in SMOKELESS UMAF OR BIOS
 
 function doAdjust_ryzenadj {
@@ -174,110 +166,44 @@ function adjust ([String] $fieldName, [uInt32] $value) {
         $newTargetValue = [math]::round($value * 0.001, 3, 0)
         if($Script:monitorFieldAdjTarget -ne $newTargetValue){
             $Script:monitorFieldAdjTarget = $newTargetValue
-            Write-Host "set new monitoring target $fieldName to $newTargetValue"
         }
     }
     $res = Invoke-Expression "[ryzen.adj]::set_$fieldName($ry, $value)"
-    switch ($res) {
-        0 {
-            if($debugMode) { Write-Host "set $fieldName to $value" }
-            return
-        }
-        -1 { Write-Error "set_$fieldName is not supported on this family"}
-        -3 { Write-Error "set_$fieldName is not supported on this SMU"}
-        -4 { Write-Error "set_$fieldName is rejected by SMU"}
-        default { Write-Error "set_$fieldName did fail with $res"}
+    if ($res -ne 0) {
+        Write-Error "Failed to set $fieldName with result code $res"
     }
 }
 
 function enable ([String] $fieldName) {
     $res = Invoke-Expression "[ryzen.adj]::set_$fieldName($ry)"
-    switch ($res) {
-        0 {
-            if($debugMode) { Write-Host "enable $fieldName"}
-            return
-        }
-        -1 { Write-Error "set_$fieldName is not supported on this family"}
-        -3 { Write-Error "set_$fieldName is not supported on this SMU"}
-        -4 { Write-Error "set_$fieldName is rejected by SMU"}
-        default { Write-Error "set_$fieldName did fail with $res"}
-    }
-}
-
-function testMonitorField {
-    if($monitorField -and $Script:monitorFieldAdjTarget -eq 0){
-        Write-Error ("You forgot to set $monitorField in your profile.$NL$NL" +
-            "If you ignore it, the script will apply values unnessasary often.$NL")
-    }
-}
-
-function updateMonitorFieldAdjResult {
-    if($monitorField){
-        [void][ryzen.adj]::refresh_table($ry)
-        $Script:monitorFieldAdjResult = [math]::round((getMonitorValue), 3, 0)
-        if($Script:monitorFieldAdjTarget -ne $Script:monitorFieldAdjResult){
-            Write-Host ("Warning - $monitorField adjust result $Script:monitorFieldAdjResult does not match target value $Script:monitorFieldAdjTarget. Value $Script:monitorFieldAdjResult will be used for monitoring")
-        }
-    }
-}
-
-function testConfiguration {
-    Write-Host "Test Adjustments"
-    doAdjust_ryzenadj
-    testMonitorField
-    $Script:monitorFieldAdjTarget = 0
-    updateMonitorFieldAdjResult
-
-    if($Error -and $showErrorPopupsDuringInit){
-        $answer = [System.Windows.Forms.MessageBox]::Show("Your Adjustment configuration did not work.$NL$NL$($Error -join $NL)", $PSCommandPath,
-            [System.Windows.Forms.MessageBoxButtons]::AbortRetryIgnore,
-            [System.Windows.Forms.MessageBoxIcon]::Warning)
-        $Error.Clear()
-        if($answer -eq "Abort"){ exit 1 }
-        if($answer -eq "Retry"){ testConfiguration }
+    if ($res -ne 0) {
+        Write-Error "Failed to enable $fieldName with result code $res"
     }
 }
 
 function resetSTAPMIfNeeded {
     $stapm_limit = [ryzen.adj]::get_stapm_limit($ry)
     $stapm_value = [ryzen.adj]::get_stapm_value($ry)
-    $stapm_hysteresis = 1 #Throttling starts arround ~0.9W before limit
 
-    if ($stapm_value -gt ($stapm_limit - $stapm_hysteresis)) {
+    if ($stapm_value -gt ($stapm_limit - 1)) {
         $stapm_time = [ryzen.adj]::get_stapm_time($ry)
-        $reduced_stapm_limit = ($stapm_limit - 5) #reduce stapm by 5W
-        # Write-Host "[STAPM_RESET] stapm_value ($stapm_value) nearing stapm_limit ($stapm_limit), resetting..."
-        [void][ryzen.adj]::set_stapm_limit($ry, ($reduced_stapm_limit) * 1000)
+        [void][ryzen.adj]::set_stapm_limit($ry, ($stapm_limit - 5) * 1000)
         [void][ryzen.adj]::set_stapm_time($ry, 0)
-        [Threading.Thread]::Sleep(10) #10ms is usually enough time
+        [Threading.Thread]::Sleep(10)
         [void][ryzen.adj]::set_stapm_time($ry, $stapm_time)
-        [void][ryzen.adj]::set_stapm_limit($ry, $stapm_limit * 1250) # add 25% STAPM limit in case we are at battery saving mode where applied values get reduced by 10% or 20%
+        [void][ryzen.adj]::set_stapm_limit($ry, $stapm_limit * 1250)
     }
 }
 
-if(-not $Script:repeatWaitTimeSeconds) { $Script:repeatWaitTimeSeconds = 5 }
-$Script:monitorFieldAdjResult = 0; #adjust result will be used for monitoring because SMU may only set 90% and 80% of your value
-$Script:monitorFieldAdjTarget = 0;
+if (-not $Script:repeatWaitTimeSeconds) { $Script:repeatWaitTimeSeconds = 5 }
 
-testConfiguration
+doAdjust_ryzenadj
 
-<# Example how to get 560 lines of ptable
-$pmTable = [float[]]::new(560)
-$tablePtr = [ryzen.adj]::get_table_values($ry);
-[System.Runtime.InteropServices.Marshal]::Copy($tablePtr, $pmTable, 0, 560);
-#>
 $processType = "Apply Settings"
-
 Write-Host "$processType every $Script:repeatWaitTimeSeconds seconds..."
-while($true) {
 
-        $oldWait = $Script:repeatWaitTimeSeconds
-        doAdjust_ryzenadj
-        updateMonitorFieldAdjResult
-        if($resetSTAPMUsage){
-            resetSTAPMIfNeeded
-        }
-        if($oldWait -ne $Script:repeatWaitTimeSeconds ) { Write-Host "$processType every $Script:repeatWaitTimeSeconds seconds..." }
-
-    sleep $Script:repeatWaitTimeSeconds
+while ($true) {
+    doAdjust_ryzenadj
+    if ($resetSTAPMUsage) { resetSTAPMIfNeeded }
+    Start-Sleep -Seconds $Script:repeatWaitTimeSeconds
 }
