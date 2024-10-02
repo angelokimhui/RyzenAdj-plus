@@ -47,7 +47,7 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                                 Start-Sleep -Seconds 3
                             }
                         }
-                        {$_ -le 50} {
+                        {$_ -le 55} {
                             Set-FanSpeed 30
                             while ($sensor.Value -lt 60 -and $sensor.Value -gt 45) {
                                 $hardwareItem.Update()
@@ -56,16 +56,9 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                         }
                         {$_ -le 60} {
                             Set-FanSpeed 50
-                            while ($sensor.Value -lt 65 -and $sensor.Value -gt 50) {
+                            while ($sensor.Value -lt 70 -and $sensor.Value -gt 55) {
                                 $hardwareItem.Update()
                                 Start-Sleep -Seconds 1
-                            }
-                        }
-                        {$_ -le 65} {
-                            Set-FanSpeed 60
-                            while ($sensor.Value -lt 70 -and $sensor.Value -gt 60) {
-                                $hardwareItem.Update()
-                                Start-Sleep -Seconds 2
                             }
                         }
                         {$_ -le 70} {
