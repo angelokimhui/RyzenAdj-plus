@@ -19,13 +19,13 @@ $resetSTAPMUsage = $true
 function doAdjust_ryzenadj {
     $Script:repeatWaitTimeSeconds = 10
     enable "max_performance"
-    adjust "stapm_limit" 28000
-    adjust "fast_limit" 28000
-    adjust "slow_limit" 28000
+    adjust "stapm_limit" 25000
+    adjust "fast_limit" 25000
+    adjust "slow_limit" 25000
     adjust "slow_time" 500
     adjust "prochot_deassertion_ramp" 1
-    adjust "tctl_temp" 90
-    adjust "apu_skin_temp_limit" 50
+    adjust "tctl_temp" 80
+    adjust "apu_skin_temp_limit" 45
     adjust "stapm_time" 500
     # adjust "vrmmax_current" 80000
     # adjust "vrmsocmax_current" 30000
