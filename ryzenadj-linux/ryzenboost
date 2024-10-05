@@ -5,7 +5,7 @@ do
 	# ryzenadj --stapm-limit 55000 --fast-limit 55000 --slow-limit 55000 --apu-slow-limit 55000 --tctl-temp 90 --apu-skin-temp 60 --vrmsoc-current 20000 --vrm-current 40000 --vrmsocmax-current 30000 --vrmmax-current 80000 --set-coall 1048555 --max-performance >> /dev/null &
 
 	# HP 15s EQ3xxx with very bad VRM cooling and bad heat transfer even with liquid metal as TIM.
-	ryzenadj --stapm-limit 35000 --fast-limit 35000 --slow-limit 25000 --apu-slow-limit 25000 --slow-time 20 --tctl-temp 85 --apu-skin-temp 60 --max-performance >> /dev/null &
+	ryzenadj --stapm-limit 25000 --fast-limit 25000 --slow-limit 22500 --apu-slow-limit 22500 --slow-time 20 --tctl-temp 80 --apu-skin-temp 60 --max-performance >> /dev/null &
 
-	sleep 20
+	sleep 10
 done
