@@ -18,15 +18,16 @@ $resetSTAPMUsage = $false
 
 function doAdjust_ryzenadj {
     $Script:repeatWaitTimeSeconds = 10
-    enable "max_performance"
+    # enable "power-saving"
+    enable "max-performance"
     adjust "stapm_limit" 25000
-    adjust "fast_limit" 25000
-    adjust "slow_limit" 22500
-    adjust "slow_time" 15
-    adjust "prochot_deassertion_ramp" 1
+    adjust "fast_limit" 35000
+    adjust "slow_limit" 20000
+    adjust "slow_time" 20
+    adjust "prochot_deassertion_ramp" 10
     adjust "tctl_temp" 80
-    adjust "apu_skin_temp_limit" 45
-    # adjust "stapm_time" 500
+    adjust "apu_skin_temp_limit" 60
+    # adjust "stapm_time" 300
     # adjust "vrmmax_current" 80000
     # adjust "vrmsocmax_current" 30000
     # adjust "vrm_current" 40000
@@ -166,7 +167,7 @@ function resetSTAPMIfNeeded {
         $stapm_time = [ryzen.adj]::get_stapm_time($ry)
         adjust "stapm_limit" ($stapm_limit - 5) * 1000
         adjust "stapm_time" 0
-        Start-Sleep -Milliseconds 10
+        Start-Sleep -Milliseconds 15
         adjust "stapm_time" $stapm_time
         adjust "stapm_limit" $stapm_limit * 1250
     }
@@ -175,7 +176,7 @@ function resetSTAPMIfNeeded {
 Write-Host "Applying settings every $Script:repeatWaitTimeSeconds seconds..."
 
 while ($true) {
-    if ($resetSTAPMUsage) { resetSTAPMIfNeeded }
+    # if ($resetSTAPMUsage) { resetSTAPMIfNeeded }
     doAdjust_ryzenadj
     Start-Sleep -Seconds $Script:repeatWaitTimeSeconds
 }
