@@ -40,16 +40,16 @@ foreach ($hardwareItem in $hwmon.Hardware) {
                     $temperature = $sensor.Value
 
                     switch ($temperature) {
-                        {$_ -le 45} {
+                        {$_ -le 50} {
                             Set-FanSpeed 0
-                            while ($sensor.Value -lt 40) {
+                            while ($sensor.Value -le 50) {
                                 $hardwareItem.Update()
-                                Start-Sleep -Seconds 3
+                                Start-Sleep -Seconds 5
                             }
                         }
                         {$_ -le 55} {
                             Set-FanSpeed 30
-                            while ($sensor.Value -lt 60 -and $sensor.Value -gt 45) {
+                            while ($sensor.Value -lt 60 -and $sensor.Value -gt 50) {
                                 $hardwareItem.Update()
                                 Start-Sleep -Seconds 1
                             }
