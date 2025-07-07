@@ -15,11 +15,11 @@ $Error.Clear()
 $pathToRyzenAdjDlls = Split-Path -Parent $PSCommandPath
 $showErrorPopupsDuringInit = $true
 $resetSTAPMUsage = $false
+$Script:repeatWaitTimeSeconds = 10
 
 function doAdjust_ryzenadj {
-    $Script:repeatWaitTimeSeconds = 10
-    # enable "power_saving"
-    enable "max_performance"
+    enable "power_saving"
+    # enable "max_performance"
     adjust "stapm_limit" 30000
     adjust "fast_limit" 35000
     adjust "slow_limit" 25000
